@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "esbuild src/page.ts src/background.ts --bundle --outdir=dist --format=iife --target=chrome110 && cp manifest.json dist/manifest.json && cp -r icons dist/icons",
+    "build": "esbuild src/page.ts src/background.ts --bundle --outdir=dist --format=iife --target=chrome110 && cp manifest.json dist/manifest.json && mkdir -p dist/icons && cp icons/icon-16.png icons/icon-48.png icons/icon-128.png dist/icons/",
     "watch": "esbuild src/page.ts src/background.ts --bundle --outdir=dist --format=iife --target=chrome110 --watch",
     "package": "npm run build && cd dist && zip -r ../slack-markdown-proxy.zip ."
   },

@@ -54,6 +54,14 @@ You can also call it directly from the DevTools console:
 __slackMarkdown("**bold** and *italic* test\n- list 1\n- list 2");
 ```
 
+## Packaging for Chrome Web Store
+
+```bash
+npm run package
+```
+
+This builds the project and creates `slack-markdown-proxy.zip` ready for upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+
 ## Development
 
 ```bash
