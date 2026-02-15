@@ -1,11 +1,13 @@
-import { parseMarkdown, Token, InlineToken, ListItem } from './markdown-parser';
+import { parseMarkdown, Token, InlineToken } from './markdown-parser';
 
 /**
- * Find the Quill editor instance from the DOM.
- * Quill stores itself as `container.__quill`.
+ * Find the Quill editor instance from a target element.
+ * Walks up from the given element (or falls back to DOM query)
+ * to find the `.ql-container` and its Quill instance.
  */
-function getQuill(): any {
-  const editor = document.querySelector('.ql-editor[contenteditable="true"]');
+function getQuill(target?: Element): any {
+  const editor = target?.closest('.ql-editor')
+    ?? document.querySelector('.ql-editor[contenteditable="true"]');
   if (!editor) {
     console.error('[slack-markdown-proxy] .ql-editor not found');
     return null;
@@ -45,6 +47,39 @@ function getQuill(): any {
 }
 
 /**
+ * Push inline token ops into the ops array.
+ * Recursively merges attributes so nested formatting
+ * (e.g. *[text](url)* → italic + link) is preserved.
+ */
+function pushInlineOps(
+  ops: any[],
+  tokens: InlineToken[],
+  inherited: Record<string, any> = {}
+): void {
+  for (const token of tokens) {
+    switch (token.type) {
+      case 'bold':
+        pushInlineOps(ops, token.children, { ...inherited, bold: true });
+        break;
+      case 'italic':
+        pushInlineOps(ops, token.children, { ...inherited, italic: true });
+        break;
+      case 'link':
+        pushInlineOps(ops, token.children, { ...inherited, link: token.url });
+        break;
+      default: {
+        const op: any = { insert: token.content };
+        if (Object.keys(inherited).length > 0) {
+          op.attributes = { ...inherited };
+        }
+        ops.push(op);
+        break;
+      }
+    }
+  }
+}
+
+/**
  * Build a Quill Delta from parsed tokens.
  * The delta retains `startIndex` characters, then inserts formatted content.
  */
@@ -60,20 +95,8 @@ function buildDelta(
 
   for (const token of tokens) {
     switch (token.type) {
-      case 'text':
-        ops.push({ insert: token.content });
-        break;
-
-      case 'bold':
-        ops.push({ insert: token.content, attributes: { bold: true } });
-        break;
-
-      case 'italic':
-        ops.push({ insert: token.content, attributes: { italic: true } });
-        break;
-
-      case 'link':
-        ops.push({ insert: token.text, attributes: { link: token.url } });
+      case 'paragraph':
+        pushInlineOps(ops, token.content);
         break;
 
       case 'newline':
@@ -113,28 +136,6 @@ function buildDelta(
 }
 
 /**
- * Push inline token ops (text / bold / italic / link) into the ops array.
- */
-function pushInlineOps(ops: any[], tokens: InlineToken[]): void {
-  for (const token of tokens) {
-    switch (token.type) {
-      case 'bold':
-        ops.push({ insert: token.content, attributes: { bold: true } });
-        break;
-      case 'italic':
-        ops.push({ insert: token.content, attributes: { italic: true } });
-        break;
-      case 'link':
-        ops.push({ insert: token.text, attributes: { link: token.url } });
-        break;
-      default:
-        ops.push({ insert: token.content });
-        break;
-    }
-  }
-}
-
-/**
  * Count total inserted characters in a delta.
  */
 function countInsertedLength(ops: any[]): number {
@@ -146,13 +147,14 @@ function countInsertedLength(ops: any[]): number {
 
 /**
  * Main entry point.
+ * Optionally accepts a target element to locate the correct Quill instance.
  */
-function slackMarkdown(markdown: string): void {
+function slackMarkdown(markdown: string, target?: Element): void {
   console.log('[slack-markdown-proxy] Parsing markdown...');
   const tokens = parseMarkdown(markdown);
   console.log('[slack-markdown-proxy] Tokens:', tokens);
 
-  const quill = getQuill();
+  const quill = getQuill(target);
   if (!quill) return;
 
   // Get cursor position (or end of document)
@@ -184,8 +186,8 @@ function looksLikeMarkdown(text: string): boolean {
   if (/^[\t ]*> .+/m.test(text)) return true;
   // Bold: **text**
   if (/\*\*.+?\*\*/.test(text)) return true;
-  // Italic: *text* (but not **)
-  if (/(?<!\*)\*(?!\*).+?(?<!\*)\*(?!\*)/.test(text)) return true;
+  // Italic: *text* (opening * must be followed by non-space)
+  if (/(?<!\*)\*(?!\*)(?=\S).+?(?<!\*)\*(?!\*)/.test(text)) return true;
   // Link: [text](url)
   if (/\[.+?\]\(.+?\)/.test(text)) return true;
   return false;
@@ -210,14 +212,17 @@ function setupPasteIntercept(): void {
       e.preventDefault();
       e.stopPropagation();
       console.log('[slack-markdown-proxy] Intercepted paste, applying Markdown formatting');
-      slackMarkdown(text);
+      slackMarkdown(text, target);
     },
     true // capture phase — run before Slack's own handler
   );
   console.log('[slack-markdown-proxy] Paste intercept is active.');
 }
 
-// Expose to window
-(window as any).__slackMarkdown = slackMarkdown;
-setupPasteIntercept();
-console.log('[slack-markdown-proxy] window.__slackMarkdown is ready (Quill API mode).');
+// Guard against duplicate injection (SPA re-navigation)
+if (!(window as any).__slackMarkdownReady) {
+  (window as any).__slackMarkdownReady = true;
+  (window as any).__slackMarkdown = slackMarkdown;
+  setupPasteIntercept();
+  console.log('[slack-markdown-proxy] window.__slackMarkdown is ready (Quill API mode).');
+}

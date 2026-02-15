@@ -1,16 +1,13 @@
 export type InlineToken =
   | { type: 'text'; content: string }
-  | { type: 'bold'; content: string }
-  | { type: 'italic'; content: string }
-  | { type: 'link'; text: string; url: string };
+  | { type: 'bold'; children: InlineToken[] }
+  | { type: 'italic'; children: InlineToken[] }
+  | { type: 'link'; children: InlineToken[]; url: string };
 
 export type ListItem = { content: InlineToken[]; indent: number };
 
 export type Token =
-  | { type: 'text'; content: string }
-  | { type: 'bold'; content: string }
-  | { type: 'italic'; content: string }
-  | { type: 'link'; text: string; url: string }
+  | { type: 'paragraph'; content: InlineToken[] }
   | { type: 'bulletList'; items: ListItem[] }
   | { type: 'orderedList'; items: ListItem[] }
   | { type: 'blockquote'; content: InlineToken[] }
@@ -38,14 +35,21 @@ export function parseInline(text: string): InlineToken[] {
     if (text[i] === '[') {
       const closeBracket = text.indexOf(']', i + 1);
       if (closeBracket !== -1 && text[closeBracket + 1] === '(') {
-        const closeParen = text.indexOf(')', closeBracket + 2);
-        if (closeParen !== -1) {
+        // Find matching ')' with nesting support
+        let depth = 1;
+        let j = closeBracket + 2;
+        while (j < text.length && depth > 0) {
+          if (text[j] === '(') depth++;
+          else if (text[j] === ')') depth--;
+          j++;
+        }
+        if (depth === 0) {
           const linkText = text.slice(i + 1, closeBracket);
-          const linkUrl = text.slice(closeBracket + 2, closeParen);
+          const linkUrl = text.slice(closeBracket + 2, j - 1);
           if (linkText.length > 0 && linkUrl.length > 0) {
             flushBuf();
-            tokens.push({ type: 'link', text: linkText, url: linkUrl });
-            i = closeParen + 1;
+            tokens.push({ type: 'link', children: parseInline(linkText), url: linkUrl });
+            i = j;
             continue;
           }
         }
@@ -59,7 +63,7 @@ export function parseInline(text: string): InlineToken[] {
         const boldContent = text.slice(i + 2, boldEnd);
         if (boldContent.length > 0) {
           flushBuf();
-          tokens.push({ type: 'bold', content: boldContent });
+          tokens.push({ type: 'bold', children: parseInline(boldContent) });
           i = boldEnd + 2;
           continue;
         }
@@ -72,7 +76,7 @@ export function parseInline(text: string): InlineToken[] {
       let j = i + 1;
       let found = -1;
       while (j < text.length) {
-        if (text[j] === '*' && text[j + 1] !== '*' && (j === 0 || text[j - 1] !== '*')) {
+        if (text[j] === '*' && text[j + 1] !== '*' && text[j - 1] !== '*') {
           found = j;
           break;
         }
@@ -82,7 +86,7 @@ export function parseInline(text: string): InlineToken[] {
         const italicContent = text.slice(i + 1, found);
         if (italicContent.length > 0) {
           flushBuf();
-          tokens.push({ type: 'italic', content: italicContent });
+          tokens.push({ type: 'italic', children: parseInline(italicContent) });
           i = found + 1;
           continue;
         }
@@ -162,11 +166,8 @@ export function parseMarkdown(markdown: string): Token[] {
       continue;
     }
 
-    // Plain line → parse inline tokens and flatten
-    const inlineTokens = parseInline(line);
-    for (const t of inlineTokens) {
-      tokens.push(t);
-    }
+    // Plain line → paragraph with inline tokens
+    tokens.push({ type: 'paragraph', content: parseInline(line) });
     // Add newline after a text line if it's not the last line
     if (i < lines.length - 1) {
       tokens.push({ type: 'newline' });
