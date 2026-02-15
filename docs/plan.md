@@ -107,8 +107,21 @@ DevTools console (MAIN world)
 
 ---
 
+## Phase 3: コピペのインターセプト ✅ 完了
+
+Slack エディタ（`.ql-editor`）への `paste` イベントを capture phase でリッスンし、クリップボードのテキストに Markdown パターン（箇条書き・引用・太字）が含まれる場合にデフォルトのペーストを抑止して `slackMarkdown()` で書式付き入力を行う。
+
+### 追加実装
+
+- **ネスト箇条書き対応**: 先頭の空白からインデントレベルを算出（2スペース = 1段）し、Quill Delta の `indent` 属性に反映
+- **Markdown 検出ヒューリスティック** (`looksLikeMarkdown`):
+  - `^[\t ]*[-*] .+` — 箇条書き
+  - `^[\t ]*> .+` — 引用
+  - `\*\*.+?\*\*` — 太字
+
+---
+
 ## 今後の Phase
 
 - **Phase 2**: ポップアップ UI の追加（Markdown 入力欄 + 「入力」ボタン）
-- **Phase 3**: コピペのインターセプト（Ctrl+V をフックして Markdown を検出・代理入力）
 - **Phase 4**: 追加の Markdown 記法サポート（コードブロック、イタリック、リンク等）
