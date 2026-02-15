@@ -104,26 +104,18 @@ function buildDelta(
         break;
 
       case 'bulletList':
+      case 'orderedList': {
+        const listType = token.type === 'bulletList' ? 'bullet' : 'ordered';
         for (const item of token.items) {
           pushInlineOps(ops, item.content);
-          const bulletAttrs: Record<string, any> = { list: 'bullet' };
+          const attrs: Record<string, any> = { list: listType };
           if (item.indent > 0) {
-            bulletAttrs.indent = item.indent;
+            attrs.indent = item.indent;
           }
-          ops.push({ insert: '\n', attributes: bulletAttrs });
+          ops.push({ insert: '\n', attributes: attrs });
         }
         break;
-
-      case 'orderedList':
-        for (const item of token.items) {
-          pushInlineOps(ops, item.content);
-          const orderedAttrs: Record<string, any> = { list: 'ordered' };
-          if (item.indent > 0) {
-            orderedAttrs.indent = item.indent;
-          }
-          ops.push({ insert: '\n', attributes: orderedAttrs });
-        }
-        break;
+      }
 
       case 'blockquote':
         pushInlineOps(ops, token.content);
