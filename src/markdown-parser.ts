@@ -1,49 +1,99 @@
 export type InlineToken =
   | { type: 'text'; content: string }
-  | { type: 'bold'; content: string };
+  | { type: 'bold'; content: string }
+  | { type: 'italic'; content: string }
+  | { type: 'link'; text: string; url: string };
 
-export type BulletItem = { content: InlineToken[]; indent: number };
+export type ListItem = { content: InlineToken[]; indent: number };
 
 export type Token =
   | { type: 'text'; content: string }
   | { type: 'bold'; content: string }
-  | { type: 'bulletList'; items: BulletItem[] }
+  | { type: 'italic'; content: string }
+  | { type: 'link'; text: string; url: string }
+  | { type: 'bulletList'; items: ListItem[] }
+  | { type: 'orderedList'; items: ListItem[] }
   | { type: 'blockquote'; content: InlineToken[] }
   | { type: 'newline' };
 
 /**
- * Parse inline content (bold and text) from a string.
- * Handles **bold** markers within a line.
+ * Parse inline content (bold, italic, link, text) from a string.
+ * Uses a character-level scanner.
+ * Priority: Link → Bold(**) → Italic(*)
  */
 export function parseInline(text: string): InlineToken[] {
   const tokens: InlineToken[] = [];
-  let remaining = text;
+  let buf = '';
+  let i = 0;
 
-  while (remaining.length > 0) {
-    const boldStart = remaining.indexOf('**');
-    if (boldStart === -1) {
-      tokens.push({ type: 'text', content: remaining });
-      break;
+  function flushBuf() {
+    if (buf.length > 0) {
+      tokens.push({ type: 'text', content: buf });
+      buf = '';
     }
-
-    if (boldStart > 0) {
-      tokens.push({ type: 'text', content: remaining.slice(0, boldStart) });
-    }
-
-    const boldEnd = remaining.indexOf('**', boldStart + 2);
-    if (boldEnd === -1) {
-      // No closing **, treat as plain text
-      tokens.push({ type: 'text', content: remaining.slice(boldStart) });
-      break;
-    }
-
-    const boldContent = remaining.slice(boldStart + 2, boldEnd);
-    if (boldContent.length > 0) {
-      tokens.push({ type: 'bold', content: boldContent });
-    }
-    remaining = remaining.slice(boldEnd + 2);
   }
 
+  while (i < text.length) {
+    // Link: [text](url)
+    if (text[i] === '[') {
+      const closeBracket = text.indexOf(']', i + 1);
+      if (closeBracket !== -1 && text[closeBracket + 1] === '(') {
+        const closeParen = text.indexOf(')', closeBracket + 2);
+        if (closeParen !== -1) {
+          const linkText = text.slice(i + 1, closeBracket);
+          const linkUrl = text.slice(closeBracket + 2, closeParen);
+          if (linkText.length > 0 && linkUrl.length > 0) {
+            flushBuf();
+            tokens.push({ type: 'link', text: linkText, url: linkUrl });
+            i = closeParen + 1;
+            continue;
+          }
+        }
+      }
+    }
+
+    // Bold: **text**
+    if (text[i] === '*' && text[i + 1] === '*') {
+      const boldEnd = text.indexOf('**', i + 2);
+      if (boldEnd !== -1) {
+        const boldContent = text.slice(i + 2, boldEnd);
+        if (boldContent.length > 0) {
+          flushBuf();
+          tokens.push({ type: 'bold', content: boldContent });
+          i = boldEnd + 2;
+          continue;
+        }
+      }
+    }
+
+    // Italic: *text* (single *, not part of **)
+    if (text[i] === '*' && text[i + 1] !== '*') {
+      // Find closing * that is not part of **
+      let j = i + 1;
+      let found = -1;
+      while (j < text.length) {
+        if (text[j] === '*' && text[j + 1] !== '*' && (j === 0 || text[j - 1] !== '*')) {
+          found = j;
+          break;
+        }
+        j++;
+      }
+      if (found !== -1) {
+        const italicContent = text.slice(i + 1, found);
+        if (italicContent.length > 0) {
+          flushBuf();
+          tokens.push({ type: 'italic', content: italicContent });
+          i = found + 1;
+          continue;
+        }
+      }
+    }
+
+    buf += text[i];
+    i++;
+  }
+
+  flushBuf();
   return tokens;
 }
 
@@ -52,7 +102,10 @@ export function parseInline(text: string): InlineToken[] {
  *
  * Supported syntax:
  *   - **bold**
+ *   - *italic*
+ *   - [text](url) (link)
  *   - `- item` or `* item` (bullet list, consecutive lines grouped)
+ *   - `1. item` (ordered list, consecutive lines grouped)
  *   - `> text` (blockquote)
  *   - Plain text
  */
@@ -67,7 +120,7 @@ export function parseMarkdown(markdown: string): Token[] {
     // Bullet list: lines starting with optional whitespace + `- ` or `* `
     const bulletMatch = line.match(/^(\s*)([-*]) (.*)$/);
     if (bulletMatch) {
-      const items: BulletItem[] = [];
+      const items: ListItem[] = [];
       while (i < lines.length) {
         const m = lines[i].match(/^(\s*)([-*]) (.*)$/);
         if (!m) break;
@@ -76,6 +129,21 @@ export function parseMarkdown(markdown: string): Token[] {
         i++;
       }
       tokens.push({ type: 'bulletList', items });
+      continue;
+    }
+
+    // Ordered list: lines starting with optional whitespace + `1. `
+    const orderedMatch = line.match(/^(\s*)(\d+)\. (.*)$/);
+    if (orderedMatch) {
+      const items: ListItem[] = [];
+      while (i < lines.length) {
+        const m = lines[i].match(/^(\s*)(\d+)\. (.*)$/);
+        if (!m) break;
+        const indent = Math.floor(m[1].length / 2);
+        items.push({ content: parseInline(m[3]), indent });
+        i++;
+      }
+      tokens.push({ type: 'orderedList', items });
       continue;
     }
 

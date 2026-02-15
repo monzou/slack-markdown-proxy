@@ -1,4 +1,4 @@
-import { parseMarkdown, Token, InlineToken, BulletItem } from './markdown-parser';
+import { parseMarkdown, Token, InlineToken, ListItem } from './markdown-parser';
 
 /**
  * Find the Quill editor instance from the DOM.
@@ -68,6 +68,14 @@ function buildDelta(
         ops.push({ insert: token.content, attributes: { bold: true } });
         break;
 
+      case 'italic':
+        ops.push({ insert: token.content, attributes: { italic: true } });
+        break;
+
+      case 'link':
+        ops.push({ insert: token.text, attributes: { link: token.url } });
+        break;
+
       case 'newline':
         ops.push({ insert: '\n' });
         break;
@@ -75,11 +83,22 @@ function buildDelta(
       case 'bulletList':
         for (const item of token.items) {
           pushInlineOps(ops, item.content);
-          const listAttrs: Record<string, any> = { list: 'bullet' };
+          const bulletAttrs: Record<string, any> = { list: 'bullet' };
           if (item.indent > 0) {
-            listAttrs.indent = item.indent;
+            bulletAttrs.indent = item.indent;
           }
-          ops.push({ insert: '\n', attributes: listAttrs });
+          ops.push({ insert: '\n', attributes: bulletAttrs });
+        }
+        break;
+
+      case 'orderedList':
+        for (const item of token.items) {
+          pushInlineOps(ops, item.content);
+          const orderedAttrs: Record<string, any> = { list: 'ordered' };
+          if (item.indent > 0) {
+            orderedAttrs.indent = item.indent;
+          }
+          ops.push({ insert: '\n', attributes: orderedAttrs });
         }
         break;
 
@@ -94,14 +113,23 @@ function buildDelta(
 }
 
 /**
- * Push inline token ops (text / bold) into the ops array.
+ * Push inline token ops (text / bold / italic / link) into the ops array.
  */
 function pushInlineOps(ops: any[], tokens: InlineToken[]): void {
   for (const token of tokens) {
-    if (token.type === 'bold') {
-      ops.push({ insert: token.content, attributes: { bold: true } });
-    } else {
-      ops.push({ insert: token.content });
+    switch (token.type) {
+      case 'bold':
+        ops.push({ insert: token.content, attributes: { bold: true } });
+        break;
+      case 'italic':
+        ops.push({ insert: token.content, attributes: { italic: true } });
+        break;
+      case 'link':
+        ops.push({ insert: token.text, attributes: { link: token.url } });
+        break;
+      default:
+        ops.push({ insert: token.content });
+        break;
     }
   }
 }
@@ -150,10 +178,16 @@ function slackMarkdown(markdown: string): void {
 function looksLikeMarkdown(text: string): boolean {
   // Bullet list: line starting with `- ` or `* `
   if (/^[\t ]*[-*] .+/m.test(text)) return true;
+  // Ordered list: line starting with `1. `
+  if (/^[\t ]*\d+\. .+/m.test(text)) return true;
   // Blockquote: line starting with `> `
   if (/^[\t ]*> .+/m.test(text)) return true;
   // Bold: **text**
   if (/\*\*.+?\*\*/.test(text)) return true;
+  // Italic: *text* (but not **)
+  if (/(?<!\*)\*(?!\*).+?(?<!\*)\*(?!\*)/.test(text)) return true;
+  // Link: [text](url)
+  if (/\[.+?\]\(.+?\)/.test(text)) return true;
   return false;
 }
 
