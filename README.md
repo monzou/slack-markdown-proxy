@@ -1,76 +1,77 @@
 # Slack Markdown Proxy
 
-Slack のメッセージ入力欄に Markdown 書式のテキストをペーストすると、自動的に Slack のリッチテキスト書式に変換する Chrome 拡張機能です。
+A Chrome extension that automatically converts Markdown-formatted text into Slack's rich text formatting when pasted into the message input field.
 
-Slack は独自のリッチテキストエディタ (Quill) を使用しており、標準の Markdown 記法がそのまま通りません。この拡張機能はペースト時に Markdown を検出し、Quill の Delta API を通じて書式付きテキストとして挿入します。
+Slack uses its own rich text editor (Quill) and does not natively support standard Markdown syntax. This extension detects Markdown on paste and inserts formatted text via Quill's Delta API.
 
-## 対応している書式
+## Supported Formatting
 
-| Markdown | 変換結果 | 例 |
+| Markdown | Result | Example |
 |---|---|---|
-| `**text**` | **太字** | `**重要**` |
-| `*text*` | *イタリック* | `*注意*` |
-| `[text](url)` | リンク | `[Google](https://google.com)` |
-| `- item` / `* item` | 箇条書きリスト | `- 項目1` |
-| `1. item` | 番号付きリスト | `1. 手順1` |
-| `> text` | 引用 | `> 引用文` |
+| `**text**` | **Bold** | `**important**` |
+| `*text*` | *Italic* | `*note*` |
+| `[text](url)` | Link | `[Google](https://google.com)` |
+| `- item` / `* item` | Bullet list | `- item 1` |
+| `1. item` | Ordered list | `1. step 1` |
+| `> text` | Blockquote | `> quoted text` |
 
-- 箇条書き・番号付きリストはネストに対応しています (2 スペースで 1 段インデント)
-- インライン書式はリスト項目や引用の中でも使えます
+- Bullet and ordered lists support nesting (2 spaces per indent level)
+- Inline formatting works inside list items and blockquotes
+- Nested inline formatting is supported (e.g. `*[text](url)*` produces an italic link)
 
-## インストール
+## Installation
 
-### 前提条件
+### Prerequisites
 
 - Node.js
-- Chrome / Chromium 系ブラウザ
+- Chrome / Chromium-based browser
 
-### ビルド
+### Build
 
 ```bash
 npm install
 npm run build
 ```
 
-`dist/` ディレクトリにビルド成果物が出力されます。
+Build output is written to the `dist/` directory.
 
-### Chrome への読み込み
+### Load into Chrome
 
-1. Chrome で `chrome://extensions` を開く
-2. 右上の「デベロッパー モード」を有効にする
-3. 「パッケージ化されていない拡張機能を読み込む」をクリック
-4. `dist/` ディレクトリを選択
+1. Open `chrome://extensions` in Chrome
+2. Enable "Developer mode" in the top right
+3. Click "Load unpacked"
+4. Select the `dist/` directory
 
-## 使い方
+## Usage
 
-1. 拡張機能をインストールした状態で [app.slack.com](https://app.slack.com/) を開く
-2. Markdown 書式を含むテキストをメッセージ入力欄にペーストする
-3. 自動的に Slack のリッチテキスト書式に変換されて入力される
+1. Open [app.slack.com](https://app.slack.com/) with the extension installed
+2. Paste Markdown-formatted text into the message input field
+3. The text is automatically converted to Slack's rich text formatting
 
-DevTools コンソールから直接呼び出すこともできます:
+You can also call it directly from the DevTools console:
 
 ```js
-__slackMarkdown("**太字** と *イタリック* のテスト\n- リスト1\n- リスト2");
+__slackMarkdown("**bold** and *italic* test\n- list 1\n- list 2");
 ```
 
-## 開発
+## Development
 
 ```bash
-npm run watch   # ファイル変更時に自動ビルド
+npm run watch   # auto-rebuild on file changes
 ```
 
-ソースを変更したら `chrome://extensions` で拡張機能の更新ボタンを押し、Slack タブをリロードしてください。
+After modifying the source, click the reload button on `chrome://extensions` and refresh the Slack tab.
 
-## プロジェクト構成
+## Project Structure
 
 ```
 src/
-  markdown-parser.ts   # Markdown → トークン列のパーサー
-  page.ts              # Quill Delta 変換 + ペーストインターセプト
-  background.ts        # Slack ページへのスクリプト注入
-manifest.json          # Chrome 拡張マニフェスト (MV3)
+  markdown-parser.ts   # Markdown to token parser
+  page.ts              # Quill Delta conversion + paste intercept
+  background.ts        # Script injection into Slack pages
+manifest.json          # Chrome extension manifest (MV3)
 ```
 
-## ライセンス
+## License
 
 MIT
