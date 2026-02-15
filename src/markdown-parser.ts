@@ -2,10 +2,12 @@ export type InlineToken =
   | { type: 'text'; content: string }
   | { type: 'bold'; content: string };
 
+export type BulletItem = { content: InlineToken[]; indent: number };
+
 export type Token =
   | { type: 'text'; content: string }
   | { type: 'bold'; content: string }
-  | { type: 'bulletList'; items: InlineToken[][] }
+  | { type: 'bulletList'; items: BulletItem[] }
   | { type: 'blockquote'; content: InlineToken[] }
   | { type: 'newline' };
 
@@ -62,14 +64,15 @@ export function parseMarkdown(markdown: string): Token[] {
   while (i < lines.length) {
     const line = lines[i];
 
-    // Bullet list: lines starting with `- ` or `* `
-    const bulletMatch = line.match(/^(\*|-) (.*)$/);
+    // Bullet list: lines starting with optional whitespace + `- ` or `* `
+    const bulletMatch = line.match(/^(\s*)([-*]) (.*)$/);
     if (bulletMatch) {
-      const items: InlineToken[][] = [];
+      const items: BulletItem[] = [];
       while (i < lines.length) {
-        const m = lines[i].match(/^(\*|-) (.*)$/);
+        const m = lines[i].match(/^(\s*)([-*]) (.*)$/);
         if (!m) break;
-        items.push(parseInline(m[2]));
+        const indent = Math.floor(m[1].length / 2);
+        items.push({ content: parseInline(m[3]), indent });
         i++;
       }
       tokens.push({ type: 'bulletList', items });

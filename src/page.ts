@@ -1,4 +1,4 @@
-import { parseMarkdown, Token, InlineToken } from './markdown-parser';
+import { parseMarkdown, Token, InlineToken, BulletItem } from './markdown-parser';
 
 /**
  * Find the Quill editor instance from the DOM.
@@ -74,8 +74,12 @@ function buildDelta(
 
       case 'bulletList':
         for (const item of token.items) {
-          pushInlineOps(ops, item);
-          ops.push({ insert: '\n', attributes: { list: 'bullet' } });
+          pushInlineOps(ops, item.content);
+          const listAttrs: Record<string, any> = { list: 'bullet' };
+          if (item.indent > 0) {
+            listAttrs.indent = item.indent;
+          }
+          ops.push({ insert: '\n', attributes: listAttrs });
         }
         break;
 
