@@ -143,6 +143,47 @@ function slackMarkdown(markdown: string): void {
   console.log('[slack-markdown-proxy] Done.');
 }
 
+/**
+ * Detect whether a string contains Markdown formatting.
+ * Returns true if any supported Markdown pattern is found.
+ */
+function looksLikeMarkdown(text: string): boolean {
+  // Bullet list: line starting with `- ` or `* `
+  if (/^[\t ]*[-*] .+/m.test(text)) return true;
+  // Blockquote: line starting with `> `
+  if (/^[\t ]*> .+/m.test(text)) return true;
+  // Bold: **text**
+  if (/\*\*.+?\*\*/.test(text)) return true;
+  return false;
+}
+
+/**
+ * Intercept paste events on Slack's Quill editor.
+ * If the pasted text looks like Markdown, prevent the default paste
+ * and use slackMarkdown() to insert with formatting.
+ */
+function setupPasteIntercept(): void {
+  document.addEventListener(
+    'paste',
+    (e: ClipboardEvent) => {
+      // Only intercept pastes targeting a Quill editor
+      const target = e.target as HTMLElement;
+      if (!target.closest?.('.ql-editor')) return;
+
+      const text = e.clipboardData?.getData('text/plain');
+      if (!text || !looksLikeMarkdown(text)) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[slack-markdown-proxy] Intercepted paste, applying Markdown formatting');
+      slackMarkdown(text);
+    },
+    true // capture phase — run before Slack's own handler
+  );
+  console.log('[slack-markdown-proxy] Paste intercept is active.');
+}
+
 // Expose to window
 (window as any).__slackMarkdown = slackMarkdown;
+setupPasteIntercept();
 console.log('[slack-markdown-proxy] window.__slackMarkdown is ready (Quill API mode).');
