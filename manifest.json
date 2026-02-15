@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Slack Markdown Proxy Input",
+  "version": "0.1.0",
+  "description": "Emulates keyboard input to preserve Markdown formatting in Slack",
+  "permissions": ["scripting"],
+  "host_permissions": ["https://app.slack.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

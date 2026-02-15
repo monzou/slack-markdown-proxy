@@ -1,0 +1,14 @@
+{
+  "name": "slack-markdown-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/page.ts src/background.ts --bundle --outdir=dist --format=iife --target=chrome110 && cp manifest.json dist/manifest.json",
+    "watch": "esbuild src/page.ts src/background.ts --bundle --outdir=dist --format=iife --target=chrome110 --watch"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.36",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.4.0"
+  }
+}
