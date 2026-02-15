@@ -120,8 +120,3 @@ Slack エディタ（`.ql-editor`）への `paste` イベントを capture phase
   - `\*\*.+?\*\*` — 太字
 
 ---
-
-## 今後の Phase
-
-- **Phase 2**: ポップアップ UI の追加（Markdown 入力欄 + 「入力」ボタン）
-- **Phase 4**: 追加の Markdown 記法サポート（コードブロック、イタリック、リンク等）

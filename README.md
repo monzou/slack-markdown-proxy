@@ -1,6 +1,6 @@
 # Slack Markdown Proxy
 
-A Chrome extension that automatically converts Markdown-formatted text into Slack's rich text formatting when pasted into the message input field.
+A browser extension that automatically converts Markdown-formatted text into Slack's rich text formatting when pasted into the message input field.
 
 Slack uses its own rich text editor (Quill) and does not natively support standard Markdown syntax. This extension detects Markdown on paste and inserts formatted text via Quill's Delta API.
 
