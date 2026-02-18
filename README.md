@@ -4,38 +4,28 @@ A browser extension that automatically converts Markdown-formatted text into Sla
 
 Slack uses its own rich text editor (Quill) and does not natively support standard Markdown syntax. This extension detects Markdown on paste and inserts formatted text via Quill's Delta API.
 
-## Supported Formatting
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-Install-blue?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/slack-markdown-proxy/llanfnajlpjggcklilogepheehdfdgnd)
 
-| Markdown | Result | Example |
-|---|---|---|
-| `**text**` | **Bold** | `**important**` |
-| `*text*` | *Italic* | `*note*` |
-| `[text](url)` | Link | `[Google](https://google.com)` |
-| `- item` / `* item` | Bullet list | `- item 1` |
-| `1. item` | Ordered list | `1. step 1` |
-| `> text` | Blockquote | `> quoted text` |
+## Screenshot
 
-- Bullet and ordered lists support nesting (2 spaces per indent level)
-- Inline formatting works inside list items and blockquotes
-- Nested inline formatting is supported (e.g. `*[text](url)*` produces an italic link)
+![Screenshot](docs/img/screenshot.png)
 
-## Installation
+## Install
 
-### Prerequisites
+### Chrome Web Store (recommended)
 
-- Node.js
-- Chrome / Chromium-based browser
+Install directly from the Chrome Web Store:
 
-### Build
+https://chromewebstore.google.com/detail/slack-markdown-proxy/llanfnajlpjggcklilogepheehdfdgnd
+
+### Build from source
+
+Requires Node.js and a Chrome / Chromium-based browser.
 
 ```bash
 npm install
 npm run build
 ```
-
-Build output is written to the `dist/` directory.
-
-### Load into Chrome
 
 1. Open `chrome://extensions` in Chrome
 2. Enable "Developer mode" in the top right
@@ -54,13 +44,20 @@ You can also call it directly from the DevTools console:
 __slackMarkdown("**bold** and *italic* test\n- list 1\n- list 2");
 ```
 
-## Packaging for Chrome Web Store
+## Supported Formatting
 
-```bash
-npm run package
-```
+| Markdown | Result | Example |
+|---|---|---|
+| `**text**` | **Bold** | `**important**` |
+| `*text*` | *Italic* | `*note*` |
+| `[text](url)` | Link | `[Google](https://google.com)` |
+| `- item` / `* item` | Bullet list | `- item 1` |
+| `1. item` | Ordered list | `1. step 1` |
+| `> text` | Blockquote | `> quoted text` |
 
-This builds the project and creates `slack-markdown-proxy.zip` ready for upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+- Bullet and ordered lists support nesting (2 spaces per indent level)
+- Inline formatting works inside list items and blockquotes
+- Nested inline formatting is supported (e.g. `*[text](url)*` produces an italic link)
 
 ## Development
 
@@ -70,7 +67,15 @@ npm run watch   # auto-rebuild on file changes
 
 After modifying the source, click the reload button on `chrome://extensions` and refresh the Slack tab.
 
-## Project Structure
+### Packaging for Chrome Web Store
+
+```bash
+npm run package
+```
+
+This builds the project and creates `slack-markdown-proxy.zip` ready for upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+
+### Project Structure
 
 ```
 src/
