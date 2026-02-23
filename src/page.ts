@@ -1,4 +1,4 @@
-import { parseMarkdown, Token, InlineToken } from './markdown-parser';
+import { type InlineToken, type Token, parseMarkdown } from "./markdown-parser";
 
 /**
  * Find the Quill editor instance from a target element.
@@ -6,22 +6,21 @@ import { parseMarkdown, Token, InlineToken } from './markdown-parser';
  * to find the `.ql-container` and its Quill instance.
  */
 function getQuill(target?: Element): any {
-  const editor = target?.closest('.ql-editor')
-    ?? document.querySelector('.ql-editor[contenteditable="true"]');
+  const editor = target?.closest(".ql-editor") ?? document.querySelector('.ql-editor[contenteditable="true"]');
   if (!editor) {
-    console.error('[slack-markdown-proxy] .ql-editor not found');
+    console.error("[slack-markdown-proxy] .ql-editor not found");
     return null;
   }
 
-  const container = editor.closest('.ql-container');
+  const container = editor.closest(".ql-container");
   if (!container) {
-    console.error('[slack-markdown-proxy] .ql-container not found');
+    console.error("[slack-markdown-proxy] .ql-container not found");
     return null;
   }
 
   // Standard Quill: container.__quill
   if ((container as any).__quill) {
-    console.log('[slack-markdown-proxy] Found Quill via __quill');
+    console.log("[slack-markdown-proxy] Found Quill via __quill");
     return (container as any).__quill;
   }
 
@@ -31,10 +30,10 @@ function getQuill(target?: Element): any {
       const val = (container as any)[key];
       if (
         val &&
-        typeof val === 'object' &&
-        typeof val.insertText === 'function' &&
-        typeof val.getSelection === 'function' &&
-        typeof val.getLength === 'function'
+        typeof val === "object" &&
+        typeof val.insertText === "function" &&
+        typeof val.getSelection === "function" &&
+        typeof val.getLength === "function"
       ) {
         console.log(`[slack-markdown-proxy] Found Quill via property: ${key}`);
         return val;
@@ -42,7 +41,7 @@ function getQuill(target?: Element): any {
     } catch {}
   }
 
-  console.error('[slack-markdown-proxy] Quill instance not found on container');
+  console.error("[slack-markdown-proxy] Quill instance not found on container");
   return null;
 }
 
@@ -51,20 +50,16 @@ function getQuill(target?: Element): any {
  * Recursively merges attributes so nested formatting
  * (e.g. *[text](url)* → italic + link) is preserved.
  */
-function pushInlineOps(
-  ops: any[],
-  tokens: InlineToken[],
-  inherited: Record<string, any> = {}
-): void {
+function pushInlineOps(ops: any[], tokens: InlineToken[], inherited: Record<string, any> = {}): void {
   for (const token of tokens) {
     switch (token.type) {
-      case 'bold':
+      case "bold":
         pushInlineOps(ops, token.children, { ...inherited, bold: true });
         break;
-      case 'italic':
+      case "italic":
         pushInlineOps(ops, token.children, { ...inherited, italic: true });
         break;
-      case 'link':
+      case "link":
         pushInlineOps(ops, token.children, { ...inherited, link: token.url });
         break;
       default: {
@@ -83,10 +78,7 @@ function pushInlineOps(
  * Build a Quill Delta from parsed tokens.
  * The delta retains `startIndex` characters, then inserts formatted content.
  */
-function buildDelta(
-  tokens: Token[],
-  startIndex: number
-): { ops: any[] } {
+function buildDelta(tokens: Token[], startIndex: number): { ops: any[] } {
   const ops: any[] = [];
 
   if (startIndex > 0) {
@@ -95,31 +87,31 @@ function buildDelta(
 
   for (const token of tokens) {
     switch (token.type) {
-      case 'paragraph':
+      case "paragraph":
         pushInlineOps(ops, token.content);
         break;
 
-      case 'newline':
-        ops.push({ insert: '\n' });
+      case "newline":
+        ops.push({ insert: "\n" });
         break;
 
-      case 'bulletList':
-      case 'orderedList': {
-        const listType = token.type === 'bulletList' ? 'bullet' : 'ordered';
+      case "bulletList":
+      case "orderedList": {
+        const listType = token.type === "bulletList" ? "bullet" : "ordered";
         for (const item of token.items) {
           pushInlineOps(ops, item.content);
           const attrs: Record<string, any> = { list: listType };
           if (item.indent > 0) {
             attrs.indent = item.indent;
           }
-          ops.push({ insert: '\n', attributes: attrs });
+          ops.push({ insert: "\n", attributes: attrs });
         }
         break;
       }
 
-      case 'blockquote':
+      case "blockquote":
         pushInlineOps(ops, token.content);
-        ops.push({ insert: '\n', attributes: { blockquote: true } });
+        ops.push({ insert: "\n", attributes: { blockquote: true } });
         break;
     }
   }
@@ -132,7 +124,7 @@ function buildDelta(
  */
 function countInsertedLength(ops: any[]): number {
   return ops.reduce((sum: number, op: any) => {
-    if (typeof op.insert === 'string') return sum + op.insert.length;
+    if (typeof op.insert === "string") return sum + op.insert.length;
     return sum;
   }, 0);
 }
@@ -142,9 +134,9 @@ function countInsertedLength(ops: any[]): number {
  * Optionally accepts a target element to locate the correct Quill instance.
  */
 function slackMarkdown(markdown: string, target?: Element): void {
-  console.log('[slack-markdown-proxy] Parsing markdown...');
+  console.log("[slack-markdown-proxy] Parsing markdown...");
   const tokens = parseMarkdown(markdown);
-  console.log('[slack-markdown-proxy] Tokens:', tokens);
+  console.log("[slack-markdown-proxy] Tokens:", tokens);
 
   const quill = getQuill(target);
   if (!quill) return;
@@ -154,22 +146,22 @@ function slackMarkdown(markdown: string, target?: Element): void {
   const index = sel ? sel.index : quill.getLength() - 1;
 
   const delta = buildDelta(tokens, index);
-  console.log('[slack-markdown-proxy] Applying delta:', delta);
+  console.log("[slack-markdown-proxy] Applying delta:", delta);
 
-  quill.updateContents(delta, 'user');
+  quill.updateContents(delta, "user");
 
   // Move cursor to end of inserted content
   const insertedLen = countInsertedLength(delta.ops);
   quill.setSelection(index + insertedLen);
 
-  console.log('[slack-markdown-proxy] Done.');
+  console.log("[slack-markdown-proxy] Done.");
 }
 
 /**
  * Detect whether a string contains Markdown formatting.
  * Returns true if any supported Markdown pattern is found.
  */
-function looksLikeMarkdown(text: string): boolean {
+export function looksLikeMarkdown(text: string): boolean {
   // Bullet list: line starting with `- ` or `* `
   if (/^[\t ]*[-*] .+/m.test(text)) return true;
   // Ordered list: line starting with `1. `
@@ -192,29 +184,29 @@ function looksLikeMarkdown(text: string): boolean {
  */
 function setupPasteIntercept(): void {
   document.addEventListener(
-    'paste',
+    "paste",
     (e: ClipboardEvent) => {
       // Only intercept pastes targeting a Quill editor
       const target = e.target as HTMLElement;
-      if (!target.closest?.('.ql-editor')) return;
+      if (!target.closest?.(".ql-editor")) return;
 
-      const text = e.clipboardData?.getData('text/plain');
+      const text = e.clipboardData?.getData("text/plain");
       if (!text || !looksLikeMarkdown(text)) return;
 
       e.preventDefault();
       e.stopPropagation();
-      console.log('[slack-markdown-proxy] Intercepted paste, applying Markdown formatting');
+      console.log("[slack-markdown-proxy] Intercepted paste, applying Markdown formatting");
       slackMarkdown(text, target);
     },
-    true // capture phase — run before Slack's own handler
+    true, // capture phase — run before Slack's own handler
   );
-  console.log('[slack-markdown-proxy] Paste intercept is active.');
+  console.log("[slack-markdown-proxy] Paste intercept is active.");
 }
 
 // Guard against duplicate injection (SPA re-navigation)
-if (!(window as any).__slackMarkdownReady) {
+if (typeof window !== "undefined" && !(window as any).__slackMarkdownReady) {
   (window as any).__slackMarkdownReady = true;
   (window as any).__slackMarkdown = slackMarkdown;
   setupPasteIntercept();
-  console.log('[slack-markdown-proxy] window.__slackMarkdown is ready (Quill API mode).');
+  console.log("[slack-markdown-proxy] window.__slackMarkdown is ready (Quill API mode).");
 }
